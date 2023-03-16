@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -51,10 +52,6 @@ var errorType = env.String("ERROR_TYPE", false, "http_error", "Type of error [ht
 var errorCode = env.Int("ERROR_CODE", false, http.StatusInternalServerError, "Error code to return on error")
 var errorDelay = env.Duration("ERROR_DELAY", false, 0*time.Second, "Error delay [1s,100ms]")
 
-// rate limit request to the service
-var rateLimitRPS = env.Float64("RATE_LIMIT", false, 0.0, "Rate in req/second after which service will return an error code")
-var rateLimitCode = env.Int("RATE_LIMIT_CODE", false, 503, "Code to return when service call is rate limited")
-
 // load generation
 var loadCPUAllocated = env.Int("LOAD_CPU_ALLOCATED", false, 0, "MHz of CPU allocated to the service, when specified, load percentage is a percentage of CPU allocated")
 var loadCPUClockSpeed = env.Int("LOAD_CPU_CLOCK_SPEED", false, 1000, "MHz of a Single logical core, default 1000Mhz")
@@ -91,8 +88,8 @@ func init() {
 		*errorCode,
 		*errorType,
 		*errorDelay,
-		*rateLimitRPS,
-		*rateLimitCode,
+		0.0,
+		http.StatusServiceUnavailable,
 	)
 
 	// create the load generator
@@ -177,7 +174,12 @@ func LambdaHandler(req handlers.Request) (response.Response, error) {
 		return response.Response{}, err
 	}
 
-	return *resp, nil
+	var respError error
+	if rr.Code != http.StatusOK {
+		respError = fmt.Errorf("expected status 200, got status %d", rr.Code)
+	}
+
+	return *resp, respError
 }
 
 func main() {

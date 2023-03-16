@@ -1,2 +1,2 @@
 build:
-	env GOOS=linux GOARCH=amd64 go build -o ./bin/fake-lambda
+	GOOS=linux GOARCH=amd64 go build -o ./bin/fake-lambda
